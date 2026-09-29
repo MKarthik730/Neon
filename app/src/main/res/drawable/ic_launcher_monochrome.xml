@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Single-colour version of the Daylock mark for Android 13+ themed icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M39,36 H69 A7,7 0 0 1 76,43 V48 H32 V43 A7,7 0 0 1 39,36 Z M44,30 a3,3 0 0 1 3,3 v6 a3,3 0 0 1 -6,0 v-6 a3,3 0 0 1 3,-3 z M64,30 a3,3 0 0 1 3,3 v6 a3,3 0 0 1 -6,0 v-6 a3,3 0 0 1 3,-3 z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M32,51 H76 V71 A7,7 0 0 1 69,78 H39 A7,7 0 0 1 32,71 Z M54,56 A5,5 0 0 1 56.9,65 L58.2,72 L49.8,72 L51.1,65 A5,5 0 0 1 54,56 Z" />
+</vector>

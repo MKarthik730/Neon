@@ -1,0 +1,22 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.kotlin/
+keystore.properties
+*.jks
+*.keystore
+keystore/
+
+# Build outputs copied for sharing
+dist/
+*.apk
+*.aab
+
+# IDE / JVM noise
+bin/
+.vscode/
+hs_err_pid*.log
+replay_pid*.log
