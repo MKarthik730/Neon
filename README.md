@@ -1,4 +1,4 @@
-# Neon 
+# Sriii
 
 An offline Android app that combines a daily organiser (attendance, timetable, holidays, events, study pages, money/food/travel trackers, a mood check-in, and "ground rules" you read before starting a job) with an encrypted vault for notes, photos and recordings.
 
