@@ -16,13 +16,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BeachAccess
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,6 +56,7 @@ import com.lifevault.di.UnlockedGraph
 import com.lifevault.domain.attendance.DayKind
 import com.lifevault.domain.attendance.Planner
 import com.lifevault.domain.attendance.Tally
+import com.lifevault.domain.model.AttendanceRecord
 import com.lifevault.domain.model.AttendanceStatus
 import com.lifevault.domain.model.Session
 import com.lifevault.ui.common.CollectMessages
@@ -84,9 +86,10 @@ class AttendanceViewModel(graph: UnlockedGraph) : VaultViewModel(graph) {
         session.attendanceSnapshots().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val month = MutableStateFlow(YearMonth.now())
 
-    fun mark(date: LocalDate, s: Session, status: AttendanceStatus?) = launchSafe {
+    fun saveClassCounts(date: LocalDate, s: Session, counts: Map<String, Int>, irregular: Boolean) = launchSafe {
         val subjects = snapshot.value?.schedule?.session(date, s)?.subjects ?: emptyList()
-        session.attendance.mark(date, s, status, subjects)
+        session.attendance.saveClassCounts(date, s, subjects, counts, irregular)
+        say("Class counts saved")
     }
 }
 
@@ -115,7 +118,7 @@ fun AttendanceScreen(nav: NavHostController) {
                 LoadingBox()
             } else if (s.timetable.versions.isEmpty()) {
                 EmptyState(
-                    "No timetable yet. Add your weekly Morning/Evening sessions, or import them from a CSV file.",
+                    "No timetable yet. Add your weekly Morning/Afternoon sessions, or import them from a CSV file.",
                     actionLabel = "Set up timetable",
                     onAction = { nav.navigate(Routes.TIMETABLE) },
                 )
@@ -139,7 +142,12 @@ private fun TodayTab(s: AttendanceSnapshot, vm: AttendanceViewModel) {
                 val kind = s.schedule.dayKind(s.today)
                 if (kind is DayKind.Working) {
                     for (sch in kind.sessions) {
-                        SessionMarkRow(sch, s.record(sch.date, sch.session), onMark = { vm.mark(sch.date, sch.session, it) })
+                        SessionClassLog(
+                            sch,
+                            s.record(sch.date, sch.session),
+                            s.timetable.versionOn(sch.date)?.slots.orEmpty().flatMap { it.subjects }.distinct(),
+                            onSave = { counts, irregular -> vm.saveClassCounts(sch.date, sch.session, counts, irregular) },
+                        )
                     }
                 } else {
                     DayKindText(kind)
@@ -153,7 +161,12 @@ private fun TodayTab(s: AttendanceSnapshot, vm: AttendanceViewModel) {
             item { Text("Unmarked sessions", style = MaterialTheme.typography.titleMedium) }
             items(pendingPast, key = { "${it.date}-${it.session}" }) { sch ->
                 SectionCard(title = Format.date(sch.date)) {
-                    SessionMarkRow(sch, s.record(sch.date, sch.session), onMark = { vm.mark(sch.date, sch.session, it) })
+                    SessionClassLog(
+                        sch,
+                        s.record(sch.date, sch.session),
+                        s.timetable.versionOn(sch.date)?.slots.orEmpty().flatMap { it.subjects }.distinct(),
+                        onSave = { counts, irregular -> vm.saveClassCounts(sch.date, sch.session, counts, irregular) },
+                    )
                 }
             }
         }
@@ -227,7 +240,7 @@ private fun Legend(label: String, color: Color) {
 private fun DayCell(date: LocalDate, s: AttendanceSnapshot, holidayColor: Color, onClick: () -> Unit) {
     val colors = LocalStatusColors.current
     val kind = s.schedule.dayKind(date)
-    val statuses = (kind as? DayKind.Working)?.sessions?.map { s.record(date, it.session)?.status } ?: emptyList()
+    val statuses = (kind as? DayKind.Working)?.sessions?.map { effectiveStatus(s.record(date, it.session)) } ?: emptyList()
     val future = date.isAfter(s.today)
     val bg: Color = when {
         kind is DayKind.HolidayDay -> holidayColor.copy(alpha = 0.25f)
@@ -241,7 +254,10 @@ private fun DayCell(date: LocalDate, s: AttendanceSnapshot, holidayColor: Color,
         append(Format.date(date))
         when (kind) {
             is DayKind.HolidayDay -> append(", holiday")
-            is DayKind.Working -> append(", " + kind.sessions.joinToString { "${it.session.label} ${s.record(date, it.session)?.status?.label ?: "pending"}" })
+            is DayKind.Working -> append(", " + kind.sessions.joinToString {
+                val record = s.record(date, it.session)
+                "${it.session.label} ${if (record?.classLogRecorded == true) "class counts saved" else record?.status?.label ?: "pending"}"
+            })
             else -> append(", no sessions")
         }
     }
@@ -270,10 +286,20 @@ private fun DayDialog(date: LocalDate, s: AttendanceSnapshot, vm: AttendanceView
         onDismissRequest = onDismiss,
         title = { Text(Format.date(date)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 if (kind is DayKind.Working) {
-                    if (date.isAfter(current.today)) InfoText("This day is in the future; you can pre-mark a cancelled session.")
-                    for (sch in kind.sessions) SessionMarkRow(sch, current.record(date, sch.session), onMark = { vm.mark(date, sch.session, it) })
+                    if (date.isAfter(current.today)) InfoText("This day is in the future; you can enter a planned class log.")
+                    for (sch in kind.sessions) {
+                        SessionClassLog(
+                            sch,
+                            current.record(date, sch.session),
+                            current.timetable.versionOn(date)?.slots.orEmpty().flatMap { it.subjects }.distinct(),
+                            onSave = { counts, irregular -> vm.saveClassCounts(date, sch.session, counts, irregular) },
+                        )
+                    }
                 } else {
                     DayKindText(kind)
                 }
@@ -314,11 +340,38 @@ private fun StatsTab(s: AttendanceSnapshot) {
         }
         item {
             SectionCard(title = "By session") {
-                InfoText("Morning + Evening sessions: ${Format.percent(r.bySession.percentage)} (${r.bySession.present}/${r.bySession.marked})")
+                InfoText("Morning + Afternoon sessions: ${Format.percent(r.bySession.percentage)} (${r.bySession.present}/${r.bySession.marked})")
+            }
+        }
+        val classCounts = s.records.values
+            .filter { it.classLogRecorded && !it.date.isAfter(s.today) }
+            .flatMap { it.classCounts.entries }
+            .groupBy({ it.key }, { it.value })
+            .mapValues { (_, counts) -> counts.sumOf { it.toLong() } }
+        item {
+            SectionCard(title = "Classes taught") {
+                val total = classCounts.values.sum()
+                Text("$total period(s) recorded", style = MaterialTheme.typography.bodyLarge)
+                if (classCounts.isEmpty()) {
+                    InfoText("No class counts have been saved yet.")
+                } else {
+                    classCounts.toSortedMap(String.CASE_INSENSITIVE_ORDER).forEach { (subject, count) ->
+                        Row(Modifier.fillMaxWidth()) {
+                            Text(subject, modifier = Modifier.weight(1f))
+                            Text(count.toString(), fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
             }
         }
     }
+
 }
+
+private fun effectiveStatus(record: AttendanceRecord?): AttendanceStatus? =
+        record?.takeIf { it.classLogRecorded }?.let {
+            if (it.classCounts.values.any { count -> count > 0 }) AttendanceStatus.PRESENT else AttendanceStatus.ABSENT
+        } ?: record?.status
 
 @Composable
 private fun TallyRow(label: String, t: Tally, threshold: Int) {

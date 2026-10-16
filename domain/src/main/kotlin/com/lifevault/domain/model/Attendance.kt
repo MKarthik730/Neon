@@ -21,10 +21,14 @@ enum class AttendanceStatus(val label: String) {
 data class AttendanceRecord(
     @Serializable(with = LocalDateSerializer::class) val date: LocalDate,
     val session: Session,
-    val status: AttendanceStatus,
+    val status: AttendanceStatus? = null,
     /** Subjects taught in this session when it was marked, so a per-subject view can be derived later. */
     val subjects: List<String> = emptyList(),
     val updatedAt: Long = 0,
+    /** Number of periods personally taught for each selected subject. */
+    val classCounts: Map<String, Int> = emptyMap(),
+    val classLogRecorded: Boolean = false,
+    val irregular: Boolean = false,
 )
 
 @Serializable
@@ -45,6 +49,6 @@ data class AttendanceMonth(
 /** Headline counting mode. Records always store subjects so either view can be derived. */
 @Serializable
 enum class CountingMode(val label: String) {
-    PER_SESSION("Per session (morning/evening)"),
+    PER_SESSION("Per session (morning/afternoon)"),
     PER_SUBJECT("Per subject"),
 }

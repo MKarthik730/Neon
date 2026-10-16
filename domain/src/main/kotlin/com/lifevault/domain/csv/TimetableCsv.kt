@@ -12,11 +12,11 @@ import java.time.LocalTime
  * day,session,start,end,subject
  * Mon,Morning,09:00,12:30,Maths
  * Mon,Morning,09:00,12:30,Physics
- * Mon,Evening,14:00,17:00,Chemistry
+ * Mon,Afternoon,14:00,17:00,Chemistry
  * ```
  *
  *  - `day`: Mon..Sun, full names, or 1..7 (1 = Monday).
- *  - `session`: Morning/Evening (also M/E, AM/PM).
+ *  - `session`: Morning/Afternoon (also M/E, AM/PM; Evening remains accepted).
  *  - `start`/`end`: `HH:mm` 24-hour (or `9am`, `2:30 PM`).
  *  - `subject`: one per row; repeat the row for more subjects, or separate several with `|`.
  *
@@ -28,7 +28,7 @@ object TimetableCsv {
     val SAMPLE = """
         |$HEADER
         |Mon,Morning,09:00,12:30,Maths
-        |Mon,Evening,14:00,17:00,Physics|Chemistry
+        |Mon,Afternoon,14:00,17:00,Physics|Chemistry
         |Tue,Morning,09:00,12:30,English
     """.trimMargin()
 
@@ -57,7 +57,7 @@ object TimetableCsv {
             val subjects = f[4].split('|').map { it.trim() }.filter { it.isNotEmpty() }
             var ok = true
             if (day == null) { errors += CsvIssue(row.line, "Unknown day '${f[0]}'. Use Mon..Sun or 1..7."); ok = false }
-            if (session == null) { errors += CsvIssue(row.line, "Unknown session '${f[1]}'. Use Morning or Evening."); ok = false }
+            if (session == null) { errors += CsvIssue(row.line, "Unknown session '${f[1]}'. Use Morning or Afternoon."); ok = false }
             if (start == null) { errors += CsvIssue(row.line, "Invalid start time '${f[2]}'. Use HH:mm."); ok = false }
             if (end == null) { errors += CsvIssue(row.line, "Invalid end time '${f[3]}'. Use HH:mm."); ok = false }
             if (subjects.isEmpty()) { errors += CsvIssue(row.line, "Subject is empty."); ok = false }
@@ -86,12 +86,12 @@ object TimetableCsv {
             }
         }
 
-        // Morning must finish before evening starts on the same day.
+        // Morning must finish before afternoon starts on the same day.
         for (day in DayOfWeek.entries) {
             val m = acc[Key(day, Session.MORNING)] ?: continue
             val e = acc[Key(day, Session.EVENING)] ?: continue
             if (m.end.isAfter(e.start)) {
-                warnings += CsvIssue(e.line, "${day.display()}: Morning ends (${m.end}) after Evening starts (${e.start}).")
+                warnings += CsvIssue(e.line, "${day.display()}: Morning ends (${m.end}) after Afternoon starts (${e.start}).")
             }
         }
 

@@ -1,6 +1,8 @@
 package com.lifevault.ui.attendance
 
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
@@ -317,6 +320,8 @@ class TimetableImportViewModel(graph: UnlockedGraph) : VaultViewModel(graph) {
     val from = MutableStateFlow(LocalDate.now())
     val saved = MutableStateFlow(false)
 
+    fun promptCopied() = say("Photo-to-CSV prompt copied")
+
     fun load(context: Context, uri: Uri) = launchSafe {
         val t = readText(context, uri)
         text.value = t
@@ -332,6 +337,26 @@ class TimetableImportViewModel(graph: UnlockedGraph) : VaultViewModel(graph) {
         saved.value = true
     }
 }
+
+private const val TIMETABLE_PHOTO_CSV_PROMPT = """
+Convert the attached class timetable photo into CSV for the Sriii/Daylock timetable importer.
+
+Rules:
+1. Output one CSV inside a single code block. Use this exact header:
+day,session,start,end,subject
+2. Use one row per day and session. The columns are:
+day: three-letter day name Mon, Tue, Wed, Thu, Fri, Sat, or Sun
+session: Morning or Afternoon
+start and end: 24-hour HH:MM times
+subject: the class or lab name; put multiple subjects in the same session in one field separated by |
+3. Use the first class start and last class end for each Morning or Afternoon session. Include labs.
+4. Skip free periods, lunch, and breaks.
+5. Use the same spelling for a subject every time.
+6. Do not invent classes that are not in the photo.
+7. If a cell is unreadable or guessed, use your best guess in the CSV and list those cells after the code block so I can check them.
+
+Return CSV that follows the exact header and formats above.
+"""
 
 @Composable
 fun TimetableImportScreen(nav: NavHostController) {
@@ -351,8 +376,21 @@ fun TimetableImportScreen(nav: NavHostController) {
             Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            OutlinedButton(
+                onClick = {
+                    context.getSystemService(ClipboardManager::class.java).setPrimaryClip(
+                        ClipData.newPlainText("Timetable photo-to-CSV prompt", TIMETABLE_PHOTO_CSV_PROMPT.trim()),
+                    )
+                    vm.promptCopied()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.ContentCopy, contentDescription = null)
+                Text("  Copy photo-to-CSV prompt")
+            }
+            InfoText("Copies the full prompt to your clipboard. Paste it into your AI chat and attach the timetable photo.")
             SectionCard(title = "CSV format") {
-                InfoText("Columns: day, session, start, end, subject. One subject per row (repeat the row for more), or separate several with |. Days: Mon..Sun or 1..7. Sessions: Morning / Evening. Times: HH:mm.")
+                InfoText("Columns: day, session, start, end, subject. One subject per row (repeat the row for more), or separate several with |. Days: Mon..Sun or 1..7. Sessions: Morning / Afternoon. Times: HH:mm.")
                 Text(TimetableCsv.SAMPLE, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = { vm.text.value = TimetableCsv.SAMPLE; vm.parse() }) { Text("Use the sample") }
             }

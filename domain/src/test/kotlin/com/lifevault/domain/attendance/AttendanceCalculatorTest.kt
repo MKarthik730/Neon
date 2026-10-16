@@ -48,6 +48,29 @@ class AttendanceCalculatorTest {
     }
 
     @Test
+    fun `class logs count taught periods as present and zero periods as absent`() {
+        val records = listOf(
+            com.lifevault.domain.model.AttendanceRecord(
+                MON,
+                MORNING,
+                classCounts = mapOf("Maths" to 2),
+                classLogRecorded = true,
+            ),
+            com.lifevault.domain.model.AttendanceRecord(
+                MON,
+                EVENING,
+                classCounts = mapOf("Lab" to 0),
+                classLogRecorded = true,
+                irregular = true,
+            ),
+        )
+        val result = AttendanceCalculator.compute(schedule, records, MON, MON, CountingMode.PER_SESSION)
+        assertEquals(1, result.overall.present)
+        assertEquals(1, result.overall.absent)
+        assertEquals(0, result.overall.pending)
+    }
+
+    @Test
     fun `holidays remove both sessions even if a record exists`() {
         val holiday = Holiday("h", MON.plusDays(1), MON.plusDays(1), "Festival")
         val s = Schedule(Fixtures.weekdayTimetable(), Fixtures.holidays(holiday))

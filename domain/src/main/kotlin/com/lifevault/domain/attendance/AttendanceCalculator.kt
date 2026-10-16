@@ -72,7 +72,9 @@ object AttendanceCalculator {
 
         for (s in schedule.expand(from, today)) {
             val rec = byKey[s.date to s.session]
-            val status = rec?.status
+            val status = rec?.takeIf { it.classLogRecorded }?.let {
+                if (it.classCounts.values.any { count -> count > 0 }) AttendanceStatus.PRESENT else AttendanceStatus.ABSENT
+            } ?: rec?.status
             if (status == null) pending += s
             bySession = bySession.add(status)
             val ym = YearMonth.from(s.date)

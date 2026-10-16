@@ -12,7 +12,7 @@ import java.time.LocalTime
 @Serializable
 enum class Session(val label: String) {
     MORNING("Morning"),
-    EVENING("Evening"),
+    EVENING("Afternoon"),
 }
 
 /** One session on one weekday, e.g. Monday Morning 09:00-12:30, Maths + Physics. */
