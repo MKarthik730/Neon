@@ -9,7 +9,7 @@ Nothing is saved until the preview shows **no errors**. Every problem is listed 
 ```csv
 day,session,start,end,subject
 Mon,Morning,09:00,12:30,Maths
-Mon,Evening,14:00,17:00,Physics|Chemistry
+Mon,Afternoon,14:00,17:00,Physics|Chemistry
 Tue,Morning,09:00,12:30,English
 Tue,Morning,09:00,12:30,Lab
 ```
@@ -17,11 +17,13 @@ Tue,Morning,09:00,12:30,Lab
 | Column | Accepted values |
 |---|---|
 | `day` | `Mon`…`Sun`, full names (`Monday`), `Tues`/`Thur`/`Thurs`, or `1`–`7` (1 = Monday) |
-| `session` | `Morning`/`M`/`AM`, or `Evening`/`E`/`PM`/`Afternoon` |
+| `session` | `Morning`/`M`/`AM`, or `Afternoon`/`Evening`/`E`/`PM` |
 | `start`, `end` | `HH:mm` 24-hour, `9:00`, `9.00`, `9am`, `2:30 PM`. `end` must be after `start` |
 | `subject` | Free text. Repeat the row for more subjects, or separate several with `|` |
 
 Rows for the same day and session are merged into one session with several subjects, and their times must match. When you import, you choose a name and the date the timetable **applies from**. An earlier open-ended timetable is closed the day before, so past attendance keeps its original schedule. If two timetables start on the same day, the one added last is used.
+
+The timetable import screen also has **Copy photo-to-CSV prompt**. It copies a ready-to-paste AI prompt specifying this header and format; attach a timetable photo in your AI chat, then paste the generated CSV into the import screen for validation.
 
 ## Holidays
 

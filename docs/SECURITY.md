@@ -28,6 +28,7 @@ Android Keystore AES-256-GCM key (biometric-bound, this device only) ──AES-2
 - **Passphrase.** Argon2id with a fresh 16-byte salt. Iterations are calibrated at creation to about 400 ms on the device (at least 2, 32 MiB). Parameters are stored with each wrapped key, so a copied vault opens on any phone. Changing the passphrase only re-wraps the bundle; no data is re-encrypted.
 - **Recovery code.** 160 random bits shown once as 32 Crockford Base32 characters (`XXXX-XXXX-…`), which also wraps the bundle. Creating a new recovery code revokes the old one.
 - **Biometric quick-unlock (optional).** A third copy of the bundle is wrapped with a Keystore key that requires strong biometric authentication for every use (BiometricPrompt + CryptoObject) and is invalidated when new biometrics are enrolled. It lives in app-private storage, is useless on any other device, and is reset after a recovery.
+- **4-digit app PIN (optional).** This is a convenience gate for returning to an already-open app, not a vault key and not a replacement for the passphrase. Its verifier is an HMAC under an Android Keystore key, with a random salt and the same escalating local retry delay. It cannot open a vault after process death or full auto-lock; use the passphrase or biometric quick-unlock then. A four-digit PIN is weaker than the passphrase and should not be treated as equivalent protection.
 - **Associated data.** Each wrapped key is bound to `vaultId` and its purpose. Each data file is bound to its on-disk name, and each media blob and thumbnail to its id. A ciphertext moved to another name fails authentication.
 - **No hand-rolled crypto.** Tink provides every primitive (the wrapping uses `AesGcmJce`, which generates a random nonce per call). Argon2id comes from Bouncy Castle.
 
@@ -44,7 +45,7 @@ All of this is in app-private storage and excluded from cloud backup and device 
 
 | Item | Content | Why |
 |---|---|---|
-| Device prefs | Folder URI, vault id, failed-attempt counter, quick-action setting | Needed before unlock |
+| Device prefs | Folder URI, vault id, failed-attempt counters, quick-action setting, app theme, and (if enabled) a salted PIN verifier and quick-lock state | Needed before unlock; contains no PIN or vault content |
 | Biometric blob (optional) | Master key bundle encrypted by a biometric-bound Keystore key | Quick unlock |
 | Alarm plan | Times, alarm types, opaque ids (event id / rule-set id), date+session for attendance prompts | Rebuild alarms after reboot while locked |
 | Pending-actions queue (optional, off by default) | `(date, session, Present/Absent, timestamp)` | Mark from a notification without unlocking; merged and deleted on next unlock |
@@ -54,9 +55,10 @@ None of these ever contain subject names, event titles, amounts, notes, mood val
 ## Runtime protections
 
 - `FLAG_SECURE` on the single activity blocks screenshots, screen recording and the recents thumbnail. On Android 13+, `setRecentsScreenshotEnabled(false)` is also set.
-- Auto-lock after N minutes without interaction (default 5) and when the app goes to the background (default on). System pickers that Daylock opens itself are exempt. Locking cancels playback and recording, clears ViewModels and bitmap caches, wipes `.tmp/` and destroys the keys.
+- Auto-lock after N minutes without interaction (default 5). Normally the app also locks when it goes to the background (default on); system pickers that Sriii opens itself are exempt. With the optional PIN enabled, backgrounding instead displays the PIN gate while retaining the open session. A full lock cancels playback and recording, clears ViewModels and bitmap caches, wipes `.tmp/` and destroys the keys.
+- When the optional PIN is enabled, backgrounding the app shows its PIN gate while retaining the open session. The configured inactivity timer still destroys the session; if Android kills the process, unlocking requires the passphrase or biometrics. Password-vault entries themselves are encrypted as ordinary vault data. Copying a password explicitly places it on the system clipboard (marked sensitive on Android 13+).
 - Brute-force delay: 3 free attempts, then 5 s, 10 s, 20 s … up to 15 min. The counter survives restarts, and moving the clock back does not shorten the wait.
-- Notifications use `VISIBILITY_PRIVATE`, a generic public version ("Daylock · You have a reminder") and generic text. They are built from the alarm plan only, so they cannot contain vault data.
+- Notifications use `VISIBILITY_PRIVATE`, a generic public version ("Sriii · You have a reminder") and generic text. They are built from the alarm plan only, so they cannot contain vault data.
 - Release builds are minified and strip `android.util.Log` calls. The app itself never logs.
 - The only ways plaintext leaves the vault are explicit exports to a location you choose: "Export decrypted copy" of a media item, mood PDF/CSV, timetable/holiday CSV, and the recovery-code text file. Each one warns first.
 
@@ -70,8 +72,8 @@ Use a file manager, or `adb shell ls -la` on a debug device.
 4. [ ] After locking, `.tmp/` is empty.
 5. [ ] Nothing new was created outside the vault folder: compare a listing of `/sdcard` before and after a session that adds photos, a recording, entries and a mood check-in.
 6. [ ] `aapt dump permissions app-release.apk` lists no `INTERNET` or `ACCESS_NETWORK_STATE`.
-7. [ ] A screenshot or screen recording of Daylock is black. The recents thumbnail is blank.
-8. [ ] The lock-screen notification shows only "Daylock · You have a reminder".
+7. [ ] A screenshot or screen recording of Sriii is black. The recents thumbnail is blank.
+8. [ ] The lock-screen notification shows only "Sriii · You have a reminder".
 9. [ ] Wrong passphrases trigger growing waits that survive force-stopping the app.
 10. [ ] Copy the folder to another device (or clear app data), choose it, and it unlocks with the passphrase and with the recovery code. Biometrics must be enabled again there.
 11. [ ] `adb backup` and cloud backup do not include app data (`allowBackup=false`).

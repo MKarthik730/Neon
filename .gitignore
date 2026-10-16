@@ -4,6 +4,7 @@ local.properties
 .idea/
 *.iml
 captures/
+.DS_Store
 .kotlin/
 keystore.properties
 *.jks

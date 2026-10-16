@@ -1,11 +1,11 @@
-# Daylock
+# Sriii
 
 An offline Android app that combines a daily organiser (attendance, timetable, holidays, events, study pages, money/food/travel trackers, a mood check-in, and "ground rules" you read before starting a job) with an encrypted vault for notes, photos and recordings.
 
 - **Offline only.** The app has no `INTERNET` permission (any library that tries to add one is stripped at merge time). There are no analytics, ads or crash reporters.
 - **One folder.** You pick one folder with the system folder picker. The app reads and writes only inside that folder.
 - **Everything is encrypted.** Data files, media, thumbnails and even file names are encrypted. The only plaintext file is `vault.json`, which holds the KDF parameters and the wrapped keys.
-- **Portable.** Copy the folder to another phone, choose it in Daylock, and unlock it with your passphrase.
+- **Portable.** Copy the folder to another phone, choose it in Sriii, and unlock it with your passphrase.
 
 The internal package and applicationId stay `com.lifevault`, so installs and vault folders from earlier builds keep working. The visible name lives in one constant, `Brand.NAME` (plus `app_name` in `res/values/strings.xml`).
 
@@ -63,10 +63,11 @@ Data flow is one-way: repositories expose `Flow`, ViewModels expose `StateFlow`,
 
 | Area | What you get |
 |---|---|
-| Vault | Create (pick folder, passphrase, recovery code shown once and confirmed), unlock (passphrase, optional biometrics), lock now, auto-lock after inactivity and on leaving the app, change passphrase, new recovery code, recover with the recovery code, open an existing vault folder. |
-| Timetable | Weekly Morning/Evening sessions with start/end times and subjects. CSV import with a validation preview, a manual editor, CSV export. Each timetable has its own date range, so a new semester never rewrites past attendance. |
+| Vault | Create (pick folder, passphrase, recovery code shown once and confirmed), unlock (passphrase, optional biometrics), optional 4-digit device quick-lock, lock now, auto-lock after inactivity, change passphrase, new recovery code, recover with the recovery code, open an existing vault folder. The PIN gates a still-open app only; the passphrase remains the secure fallback. |
+| Password vault | Keep account names and custom key-value details (email, password, recovery notes, and more) inside the encrypted vault. Secrets are hidden by default, can be revealed on demand, and copied values are marked sensitive for the clipboard. |
+| Timetable | Weekly Morning/Afternoon sessions with start/end times and subjects (including labs). CSV import with a validation preview, a manual editor, and CSV export. The import screen can copy a complete prompt for converting timetable photos to the app's CSV format with an AI assistant. Existing CSVs using “Evening” remain accepted. Each timetable has its own date range, so a new semester never rewrites past records. |
 | Holidays | Single days or ranges with labels, CSV import/export, and weekly off days. Holidays remove both sessions from totals and from notifications. |
-| Attendance | Today view, month calendar, and marking of past days (Present / Absent / Cancelled; unmarked = Pending). Shows overall, per-subject and per-month percentages with a threshold warning, plus a planner: how many sessions you can skip and how many in a row you need to attend. |
+| Attendance | Log the classes a teacher personally taught for each Morning/Afternoon session. Select classes manually and enter periods taught (initially 0); switch on Irregular / substitution to display every timetable class, including labs, when another teacher takes a class or the schedule changes. Review class-period totals by subject in Stats. Existing Present/Absent records remain readable. |
 | Events | Classes, tests and custom events with an optional reminder, a linked rule set, and attachments. |
 | Study pages | One page per subject: Markdown notes (auto-saved, with preview), a checklist, attachments, and a "start study job" shortcut. |
 | Trackers | One shared `Entry` model for money, food and travel. Summaries by day/week/month and by category, a food logging streak, and travel distance and cost. |
@@ -81,9 +82,11 @@ Data flow is one-way: repositories expose `Flow`, ViewModels expose `StateFlow`,
 
 | Question | Default (changeable in Settings) |
 |---|---|
-| Attendance counting | Per session (Morning/Evening). Per subject is a setting; subjects are always stored, so either view can be derived. |
-| Required attendance | 75% |
-| Present/Absent from the notification | **Off**: the button opens Daylock and you confirm after unlocking. Turn on "Mark from the notification without unlocking" to use the small pending-actions queue (date, session and status only), which is merged into the vault on the next unlock. |
+| Class counts | Each class starts at 0 periods; select the classes taught and change counts as needed. A saved session with no periods recorded counts as no classes taught in the legacy attendance summary. |
+| App theme | System theme by default; choose Light or Dark in Settings. |
+| Attendance summary counting | Per session (Morning/Afternoon); per subject is also available in Settings. |
+| Required attendance summary | 75% |
+| Present/Absent from the notification | **Off**: the button opens Sriii and you confirm after unlocking. Turn on "Mark from the notification without unlocking" to use the small pending-actions queue (date, session and status only), which is merged into the vault on the next unlock. |
 | Other platforms | All business logic is in the pure-Kotlin `:domain` module, ready for Kotlin Multiplatform. |
 | Mood scale | 1–5 with emoji, one check-in per day (two per day is a setting). |
 | Ground rules | Every rule must be ticked before Begin unlocks. A 5-second countdown is on by default. Both are settings. |
