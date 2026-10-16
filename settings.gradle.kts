@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "LifeVault"
+rootProject.name = "Sriii"
 include(":app", ":domain")

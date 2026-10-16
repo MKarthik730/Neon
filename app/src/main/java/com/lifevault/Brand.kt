@@ -6,5 +6,5 @@ package com.lifevault
  * so renaming the app keeps existing installs and vault folders working.
  */
 object Brand {
-    const val NAME = "Daylock"
+    const val NAME = "Sriii"
 }
