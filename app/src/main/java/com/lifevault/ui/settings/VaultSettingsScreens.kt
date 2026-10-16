@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
@@ -25,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -63,9 +67,106 @@ import com.lifevault.ui.theme.LocalStatusColors
 import com.lifevault.ui.vault.RecoveryCodeScreen
 import com.lifevault.ui.vault.passphraseStrength
 import com.lifevault.vault.crypto.VaultCrypto
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalDateTime
+
+@Composable
+fun PinSettingsScreen(nav: NavHostController) {
+    val container = LocalAppContainer.current
+    val scope = rememberCoroutineScope()
+    var enabled by remember { mutableStateOf(container.prefs.pinEnabled) }
+    var current by remember { mutableStateOf("") }
+    var next by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val matches = next.isNotEmpty() && next == confirm
+
+    ScreenScaffold(title = "4-digit app PIN", onBack = { nav.popBackStack() }) { padding ->
+        Column(
+            Modifier.padding(padding).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SectionCard(title = if (enabled) "Change quick-lock PIN" else "Set up quick lock") {
+                InfoText("The PIN gates a still-open vault when you return to the app. It is device-only and cannot unlock the vault after a restart or full auto-lock.")
+                if (enabled) PinField(current, { current = it; message = null }, "Current PIN")
+                PinField(next, { next = it; message = null }, "New 4-digit PIN")
+                PinField(confirm, { confirm = it; message = null }, "Confirm new PIN")
+                if (confirm.isNotEmpty() && !matches) ErrorText("PINs do not match.")
+                message?.let { ErrorText(it) }
+                Button(
+                    onClick = {
+                        busy = true
+                        scope.launch {
+                            val result = runCatching {
+                                withContext(Dispatchers.Default) {
+                                    if (enabled) container.pinLock.changePin(current, next)
+                                    else {
+                                        container.pinLock.setPin(next)
+                                        true
+                                    }
+                                }
+                            }
+                            result.onSuccess { saved ->
+                                if (saved) {
+                                    enabled = true
+                                    current = ""
+                                    next = ""
+                                    confirm = ""
+                                    message = "Quick-lock PIN saved on this device."
+                                } else message = "Current PIN is incorrect, or PIN attempts are temporarily locked."
+                            }.onFailure { message = it.message ?: "Could not save the PIN." }
+                            busy = false
+                        }
+                    },
+                    enabled = !busy && next.matches(Regex("\\d{4}")) && matches &&
+                        (!enabled || current.matches(Regex("\\d{4}"))),
+                    modifier = Modifier.fillMaxWidth(),
+                ) { if (busy) SmallSpinner() else Text(if (enabled) "Change PIN" else "Set PIN") }
+                if (enabled) {
+                    OutlinedButton(
+                        onClick = {
+                            busy = true
+                            scope.launch {
+                                val result = runCatching {
+                                    withContext(Dispatchers.Default) { container.pinLock.disablePin(current) }
+                                }
+                                result.onSuccess { removed ->
+                                    if (removed) {
+                                        enabled = false
+                                        current = ""
+                                        next = ""
+                                        confirm = ""
+                                        message = "Quick lock disabled."
+                                    } else message = "Current PIN is incorrect, or PIN attempts are temporarily locked."
+                                }.onFailure { message = it.message ?: "Could not disable quick lock." }
+                                busy = false
+                            }
+                        },
+                        enabled = !busy && current.matches(Regex("\\d{4}")),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Remove PIN") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PinField(value: String, onChange: (String) -> Unit, label: String) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { if (it.length <= 4 && it.all(Char::isDigit)) onChange(it) },
+        label = { Text(label) },
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
 
 @Composable
 fun ChangePassphraseScreen(nav: NavHostController) {

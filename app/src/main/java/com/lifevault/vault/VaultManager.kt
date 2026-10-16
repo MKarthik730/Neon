@@ -236,6 +236,7 @@ class VaultManager(
     }
 
     private suspend fun openSession(f: SafVaultFs, h: VaultHeader, keys: VaultKeys, isNew: Boolean, recoveryCode: String?) {
+        prefs.setPinLocked(false)
         val session = withContext(Dispatchers.IO) {
             f.refresh()
             f.ensureLayout()

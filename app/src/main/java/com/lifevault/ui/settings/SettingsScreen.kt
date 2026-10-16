@@ -36,6 +36,7 @@ import androidx.navigation.NavHostController
 import com.lifevault.BuildConfig
 import com.lifevault.di.AppContainer
 import com.lifevault.di.UnlockedGraph
+import com.lifevault.domain.model.AppThemeMode
 import com.lifevault.domain.model.CountingMode
 import com.lifevault.domain.model.EntryType
 import com.lifevault.domain.model.Settings
@@ -62,6 +63,7 @@ import kotlinx.coroutines.flow.stateIn
 class SettingsViewModel(graph: UnlockedGraph, private val container: AppContainer) : VaultViewModel(graph) {
     val settings: StateFlow<Settings?> = session.settings.flow.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val quickQueue = MutableStateFlow(container.prefs.quickActionsQueue)
+    val themeMode = container.prefs.themeMode
     val biometricEnabled = MutableStateFlow(container.biometrics.isEnabled(session.header.vaultId))
     val biometricAvailable = container.biometrics.isHardwareReady()
 
@@ -107,6 +109,7 @@ fun SettingsScreen(nav: NavHostController) {
     CollectMessages(vm.messages)
     val settings by vm.settings.collectAsStateWithLifecycle()
     val quickQueue by vm.quickQueue.collectAsStateWithLifecycle()
+    val themeMode by vm.themeMode.collectAsStateWithLifecycle()
     val bioEnabled by vm.biometricEnabled.collectAsStateWithLifecycle()
     val activity = LocalContext.current as FragmentActivity
     var confirmForget by remember { mutableStateOf(false) }
@@ -127,9 +130,27 @@ fun SettingsScreen(nav: NavHostController) {
                     enabled = vm.biometricAvailable || bioEnabled,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { nav.navigate(Routes.PIN) }) {
+                        Text(if (container.prefs.pinEnabled) "Change app PIN" else "Set 4-digit PIN")
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { nav.navigate(Routes.PASSPHRASE) }) { Text("Change passphrase") }
                     OutlinedButton(onClick = { nav.navigate(Routes.RECOVERY) }) { Text("New recovery code") }
                 }
+            }
+
+            SectionCard(title = "Appearance") {
+                androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    AppThemeMode.entries.forEachIndexed { index, mode ->
+                        SegmentedButton(
+                            selected = themeMode == mode,
+                            onClick = { container.prefs.theme = mode },
+                            shape = SegmentedButtonDefaults.itemShape(index, AppThemeMode.entries.size),
+                        ) { Text(mode.label) }
+                    }
+                }
+                InfoText("Choose Light, Dark, or follow your device setting.")
             }
 
             SectionCard(title = "Attendance") {

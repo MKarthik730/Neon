@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -35,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -44,6 +46,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,8 +69,14 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 
 @Composable
-private fun CenteredPage(content: @Composable () -> Unit) {
-    Surface(Modifier.fillMaxSize()) {
+private fun CenteredPage(blockTouches: Boolean = false, content: @Composable () -> Unit) {
+    val touchBlock = if (blockTouches) {
+        Modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+        ) { }
+    } else Modifier
+    Surface(Modifier.fillMaxSize().then(touchBlock)) {
         Column(
             Modifier.fillMaxSize().safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -319,6 +329,66 @@ fun UnlockScreen(folderName: String, biometricEnabled: Boolean) {
             onConfirm = { vault.forgetFolder() },
             onDismiss = { confirmForget = false },
         )
+    }
+}
+
+@Composable
+fun PinLockScreen(onUnlocked: () -> Unit) {
+    val container = LocalAppContainer.current
+    val pinLock = container.pinLock
+    var pin by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var waitUntil by remember { mutableLongStateOf(System.currentTimeMillis() + pinLock.retryDelay()) }
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(waitUntil) {
+        while (System.currentTimeMillis() < waitUntil) {
+            now = System.currentTimeMillis()
+            delay(250)
+        }
+        now = System.currentTimeMillis()
+    }
+    val waitSec = ((waitUntil - now + 999) / 1000).coerceAtLeast(0)
+
+    CenteredPage(blockTouches = true) {
+        PageHeader("Quick lock", "Enter your four-digit PIN to return to the open vault.")
+        OutlinedTextField(
+            value = pin,
+            onValueChange = { value ->
+                if (value.length <= 4 && value.all(Char::isDigit)) {
+                    pin = value
+                    error = null
+                }
+            },
+            label = { Text("4-digit PIN") },
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        error?.let { ErrorText(it) }
+        if (waitSec > 0) InfoText("Try again in $waitSec s")
+        Button(
+            onClick = {
+                runCatching { pinLock.verifyPin(pin) }
+                    .onSuccess { valid ->
+                        if (valid) onUnlocked() else {
+                            error = "Incorrect PIN."
+                            waitUntil = System.currentTimeMillis() + pinLock.retryDelay()
+                            pin = ""
+                        }
+                    }
+                    .onFailure { error = it.message ?: "Could not verify the PIN." }
+            },
+            enabled = pin.length == 4 && waitSec == 0L,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Unlock app") }
+        TextButton(
+            onClick = {
+                pinLock.clearPin()
+                container.vault.lock()
+            },
+        ) { Text("Use full vault unlock") }
+        InfoText("The PIN is a quick app lock, not a replacement for your vault passphrase. After a restart or full auto-lock, use your passphrase or biometrics.")
     }
 }
 

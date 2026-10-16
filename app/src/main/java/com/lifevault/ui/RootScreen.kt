@@ -5,6 +5,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -20,13 +23,16 @@ import com.lifevault.ui.vault.FolderErrorScreen
 import com.lifevault.ui.vault.RecoveryCodeScreen
 import com.lifevault.ui.vault.UnlockScreen
 import com.lifevault.ui.vault.WelcomeScreen
+import com.lifevault.ui.vault.PinLockScreen
 import com.lifevault.vault.VaultState
 import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
 fun RootScreen(navRequests: MutableStateFlow<NavRequest?>) {
     val vault = LocalAppContainer.current.vault
+    val container = LocalAppContainer.current
     val state by vault.state.collectAsStateWithLifecycle()
+    val pinLocked by container.prefs.pinLocked.collectAsStateWithLifecycle()
     when (val s = state) {
         VaultState.Loading -> LoadingBox()
         VaultState.NoFolder -> WelcomeScreen()
@@ -38,7 +44,14 @@ fun RootScreen(navRequests: MutableStateFlow<NavRequest?>) {
             if (code != null) {
                 RecoveryCodeScreen(code, onDone = { vault.confirmRecoveryCodeSaved() })
             } else {
-                SessionScope(s.graph as UnlockedGraph) { MainScaffold(navRequests) }
+                SessionScope(s.graph as UnlockedGraph) {
+                    Box(Modifier.fillMaxSize()) {
+                        MainScaffold(navRequests)
+                        if (pinLocked && container.prefs.pinEnabled) {
+                            PinLockScreen(onUnlocked = { container.prefs.setPinLocked(false) })
+                        }
+                    }
+                }
             }
         }
     }

@@ -7,6 +7,7 @@ import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.fragment.app.FragmentActivity
 import com.lifevault.domain.model.AttendanceStatus
 import com.lifevault.domain.model.Session
@@ -14,6 +15,8 @@ import com.lifevault.notifications.NavTargets
 import com.lifevault.ui.RootScreen
 import com.lifevault.ui.common.LocalAppContainer
 import com.lifevault.ui.theme.LifeVaultTheme
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.time.LocalDate
 
@@ -41,8 +44,14 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         handle(intent)
         setContent {
+            val themeMode by container.prefs.themeMode.collectAsStateWithLifecycle()
             CompositionLocalProvider(LocalAppContainer provides container) {
-                LifeVaultTheme { RootScreen(navRequests) }
+                val dark = when (themeMode) {
+                    com.lifevault.domain.model.AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+                    com.lifevault.domain.model.AppThemeMode.LIGHT -> false
+                    com.lifevault.domain.model.AppThemeMode.DARK -> true
+                }
+                LifeVaultTheme(dark = dark) { RootScreen(navRequests) }
             }
         }
     }

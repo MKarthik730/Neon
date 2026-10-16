@@ -7,6 +7,13 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 @Serializable
+enum class AppThemeMode(val label: String) {
+    SYSTEM("System"),
+    LIGHT("Light"),
+    DARK("Dark"),
+}
+
+@Serializable
 data class SecuritySettings(
     /** Lock after this many minutes without interaction. 0 disables the inactivity timer. */
     val autoLockMinutes: Int = 5,

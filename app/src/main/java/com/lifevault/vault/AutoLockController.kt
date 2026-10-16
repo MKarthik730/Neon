@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
  */
 class AutoLockController(
     private val vault: VaultManager,
+    private val prefs: DevicePrefs,
     private val scope: CoroutineScope,
     private val clock: () -> Long = SystemClock::elapsedRealtime,
 ) : DefaultLifecycleObserver {
@@ -45,8 +46,13 @@ class AutoLockController(
 
     override fun onStop(owner: LifecycleOwner) {
         val session = vault.currentSession ?: return
+        if (clock() <= externalUntil) return
+        if (prefs.pinEnabled) {
+            prefs.setPinLocked(true)
+            return
+        }
         val lockOnBackground = session.settings.cached?.security?.lockOnBackground ?: true
-        if (lockOnBackground && clock() > externalUntil) vault.lock()
+        if (lockOnBackground) vault.lock()
     }
 
     private fun startTicker() {

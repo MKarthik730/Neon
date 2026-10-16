@@ -7,6 +7,7 @@ import com.lifevault.data.HolidayRepository
 import com.lifevault.data.JobLogRepository
 import com.lifevault.data.MediaIndexRepository
 import com.lifevault.data.MoodRepository
+import com.lifevault.data.PasswordRepository
 import com.lifevault.data.RulesRepository
 import com.lifevault.data.SettingsRepository
 import com.lifevault.data.StudyRepository
@@ -51,6 +52,7 @@ class VaultSession(
     val attendance = AttendanceRepository(store)
     val entries = EntryRepository(store)
     val mood = MoodRepository(store)
+    val passwords = PasswordRepository(store)
     val rules = RulesRepository(store)
     val jobLog = JobLogRepository(store)
     val events = EventRepository(store)
