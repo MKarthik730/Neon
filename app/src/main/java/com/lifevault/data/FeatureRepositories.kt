@@ -17,6 +17,8 @@ import com.lifevault.domain.model.MediaIndex
 import com.lifevault.domain.model.MediaItem
 import com.lifevault.domain.model.MoodCheckIn
 import com.lifevault.domain.model.MoodMonth
+import com.lifevault.domain.model.PasswordEntry
+import com.lifevault.domain.model.PasswordVaultFile
 import com.lifevault.domain.model.RuleReminder
 import com.lifevault.domain.model.RuleSet
 import com.lifevault.domain.model.RulesFile
@@ -82,8 +84,43 @@ class AttendanceRepository(store: EncryptedStore) :
     /** Sets the status of one session; `null` clears it back to Pending. */
     suspend fun mark(date: LocalDate, session: Session, status: AttendanceStatus?, subjects: List<String>) {
         update(YearMonth.from(date)) { m ->
-            if (status == null) m.remove(date, session)
-            else m.upsert(AttendanceRecord(date, session, status, subjects, System.currentTimeMillis()))
+            val existing = m.records.firstOrNull { it.date == date && it.session == session }
+            if (status == null) {
+                if (existing?.classLogRecorded == true) {
+                    m.upsert(existing.copy(status = null, updatedAt = System.currentTimeMillis()))
+                } else {
+                    m.remove(date, session)
+                }
+            } else {
+                m.upsert(
+                    (existing ?: AttendanceRecord(date, session, subjects = subjects))
+                        .copy(status = status, subjects = subjects, updatedAt = System.currentTimeMillis()),
+                )
+            }
+        }
+    }
+
+    suspend fun saveClassCounts(
+        date: LocalDate,
+        session: Session,
+        scheduledSubjects: List<String>,
+        classCounts: Map<String, Int>,
+        irregular: Boolean,
+    ) {
+        require(classCounts.values.all { it >= 0 }) { "Class counts cannot be negative." }
+        update(YearMonth.from(date)) { m ->
+            val existing = m.records.firstOrNull { it.date == date && it.session == session }
+            val subjects = existing?.subjects?.takeIf { it.isNotEmpty() } ?: scheduledSubjects
+            m.upsert(
+                (existing ?: AttendanceRecord(date, session))
+                    .copy(
+                        subjects = subjects,
+                        classCounts = classCounts,
+                        classLogRecorded = true,
+                        irregular = irregular,
+                        updatedAt = System.currentTimeMillis(),
+                    ),
+            )
         }
     }
 
@@ -180,6 +217,18 @@ class EventRepository(store: EncryptedStore) :
 
     suspend fun upsert(e: Event) = update { f -> f.copy(events = (f.events.filterNot { it.id == e.id } + e).sortedBy { it.startsAt() }) }
     suspend fun delete(id: String) = update { f -> f.copy(events = f.events.filterNot { it.id == id }) }
+}
+
+class PasswordRepository(store: EncryptedStore) :
+    DocRepository<PasswordVaultFile>(store, LogicalNames.PASSWORDS, PasswordVaultFile.serializer(), { PasswordVaultFile() }) {
+
+    suspend fun upsert(entry: PasswordEntry) = update { file ->
+        file.copy(entries = (file.entries.filterNot { it.id == entry.id } + entry).sortedBy { it.title.lowercase() })
+    }
+
+    suspend fun delete(id: String) = update { file ->
+        file.copy(entries = file.entries.filterNot { it.id == id })
+    }
 }
 
 class StudyRepository(private val store: EncryptedStore) {

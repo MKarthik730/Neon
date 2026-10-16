@@ -46,6 +46,7 @@ fun MoreScreen(nav: NavHostController) {
         MoreItem("Ground rules", "Read your rules before you start", Icons.Filled.Gavel) { nav.navigate(Routes.RULES) },
         MoreItem("Job log", "Jobs, time and rules-read report", Icons.Filled.Timer) { nav.navigate(Routes.JOB_LOG) },
         MoreItem("Mood report", "Trends, tags and exports", Icons.Filled.Insights) { nav.navigate(Routes.MOOD_REPORT) },
+        MoreItem("Password vault", "Encrypted account details and passwords", Icons.Filled.Lock) { nav.navigate(Routes.PASSWORDS) },
         MoreItem("Timetable", "Weekly sessions, CSV import", Icons.Filled.EditCalendar) { nav.navigate(Routes.TIMETABLE) },
         MoreItem("Holidays", "Holidays and weekly off days", Icons.Filled.BeachAccess) { nav.navigate(Routes.HOLIDAYS) },
         MoreItem("Backup & restore", "Encrypted export of the whole vault", Icons.Filled.Backup) { nav.navigate(Routes.BACKUP) },

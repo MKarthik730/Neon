@@ -10,6 +10,7 @@ import com.lifevault.notifications.PendingActionsQueue
 import com.lifevault.vault.AutoLockController
 import com.lifevault.vault.BiometricKeys
 import com.lifevault.vault.DevicePrefs
+import com.lifevault.vault.PinLock
 import com.lifevault.vault.SessionGraph
 import com.lifevault.vault.VaultManager
 import com.lifevault.vault.VaultSession
@@ -33,6 +34,7 @@ class UnlockedGraph(app: Application, override val session: VaultSession, schedu
 class AppContainer(val app: Application) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val prefs = DevicePrefs(app)
+    val pinLock = PinLock(prefs)
     val biometrics = BiometricKeys(app, prefs)
     val scheduler = AlarmScheduler(app)
     val pendingQueue = PendingActionsQueue(File(app.noBackupFilesDir, "pending-actions.json"))
@@ -46,5 +48,5 @@ class AppContainer(val app: Application) {
         graphFactory = { session -> UnlockedGraph(app, session, scheduler) },
     )
 
-    val autoLock = AutoLockController(vault, appScope)
+    val autoLock = AutoLockController(vault, prefs, appScope)
 }

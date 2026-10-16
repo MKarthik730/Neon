@@ -54,6 +54,7 @@ object LogicalNames {
     const val EVENTS = "events"
     const val STUDY_INDEX = "study-index"
     const val MEDIA_INDEX = "media-index"
+    const val PASSWORDS = "passwords"
 
     const val ATTENDANCE_PREFIX = "attendance-"
     const val ENTRIES_PREFIX = "entries-"

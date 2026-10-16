@@ -23,12 +23,14 @@ import com.lifevault.ui.media.RecorderScreen
 import com.lifevault.ui.mood.MoodCheckInScreen
 import com.lifevault.ui.mood.MoodReportScreen
 import com.lifevault.ui.more.MoreScreen
+import com.lifevault.ui.passwords.PasswordsScreen
 import com.lifevault.ui.rules.JobLogScreen
 import com.lifevault.ui.rules.RuleSetEditScreen
 import com.lifevault.ui.rules.RuleSetsScreen
 import com.lifevault.ui.rules.StartJobScreen
 import com.lifevault.ui.settings.BackupScreen
 import com.lifevault.ui.settings.ChangePassphraseScreen
+import com.lifevault.ui.settings.PinSettingsScreen
 import com.lifevault.ui.settings.ReliabilityScreen
 import com.lifevault.ui.settings.RotateRecoveryScreen
 import com.lifevault.ui.settings.SecurityInfoScreen
@@ -57,10 +59,12 @@ object Routes {
     const val RECORDER = "recorder"
     const val SETTINGS = "settings"
     const val PASSPHRASE = "settings/passphrase"
+    const val PIN = "settings/pin"
     const val RECOVERY = "settings/recovery"
     const val BACKUP = "backup"
     const val RELIABILITY = "reliability"
     const val SECURITY = "security"
+    const val PASSWORDS = "passwords"
 
     const val NEW = "new"
 
@@ -89,6 +93,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier = Modifier) {
         composable(Routes.TRACK) { TrackScreen(nav) }
         composable(Routes.MEDIA) { MediaGalleryScreen(nav) }
         composable(Routes.MORE) { MoreScreen(nav) }
+        composable(Routes.PASSWORDS) { PasswordsScreen(nav) }
 
         composable(Routes.TIMETABLE) { TimetableScreen(nav) }
         composable(Routes.TIMETABLE_IMPORT) { TimetableImportScreen(nav) }
@@ -136,6 +141,7 @@ fun AppNavHost(nav: NavHostController, modifier: Modifier = Modifier) {
 
         composable(Routes.SETTINGS) { SettingsScreen(nav) }
         composable(Routes.PASSPHRASE) { ChangePassphraseScreen(nav) }
+        composable(Routes.PIN) { PinSettingsScreen(nav) }
         composable(Routes.RECOVERY) { RotateRecoveryScreen(nav) }
         composable(Routes.BACKUP) { BackupScreen(nav) }
         composable(Routes.RELIABILITY) { ReliabilityScreen(nav) }
